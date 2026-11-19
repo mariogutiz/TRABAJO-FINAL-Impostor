@@ -1,6 +1,10 @@
+
 from abc import ABC, abstractmethod
 from enum import Enum
 import random
+
+
+# 1. FASES DEL JUEGO
 
 class FaseJuego(Enum):
     REGISTRO = 1
@@ -11,230 +15,341 @@ class FaseJuego(Enum):
     ULTIMA_OPORTUNIDAD = 6
     RESULTADO = 7
 
+
+# 2. PALABRA SECRETA
+
 class PalabraSecreta:
-    def __init__(self, texto: str, categoria: str):
-        self.texto = texto.upper().strip()
+
+    def __init__(self, texto, categoria):
+        self.texto = texto.upper()
         self.categoria = categoria
 
-    def coincideCon(self, texto: str) -> bool:
-        return self.texto == texto.upper().strip()
+    def coincideCon(self, intento):
+        return self.texto == intento.upper().strip()
+
+
+# 3. CLASE ABSTRACTA ROL
 
 class Rol(ABC):
-    def __init__(self, nombre: str):
+
+    def __init__(self, nombre):
         self.nombre = nombre
 
     @abstractmethod
-    def conocePalabra(self) -> bool:
+    def conocePalabra(self):
         pass
 
     @abstractmethod
-    def obtenerPalabraVisible(self, palabra_secreta: PalabraSecreta = None) -> str:
+    def obtenerPalabraVisible(self, palabra):
         pass
 
-class Civil(Rol):
-    def __init__(self, palabra_secreta: PalabraSecreta):
-        super().__init__("Civil")
-        self.palabraSecreta = palabra_secreta
 
-    def conocePalabra(self) -> bool:
+# 4. ROL CIVIL
+
+class Civil(Rol):
+
+    def __init__(self, palabra):
+        super().__init__("Civil")
+        self.palabra = palabra
+
+    def conocePalabra(self):
         return True
 
-    def obtenerPalabraVisible(self, palabra_secreta: PalabraSecreta = None) -> str:
-        return self.palabraSecreta.texto
+    def obtenerPalabraVisible(self, palabra):
+        return self.palabra.texto
 
+
+# 5. ROL IMPOSTOR
 
 class Impostor(Rol):
+
     def __init__(self):
         super().__init__("Impostor")
 
-    def conocePalabra(self) -> bool:
+    def conocePalabra(self):
         return False
 
-    def obtenerPalabraVisible(self, palabra_secreta: PalabraSecreta = None) -> str:
-        return "??? (Eres el Impostor)"
+    def obtenerPalabraVisible(self, palabra):
+        return "No conoces la palabra.\nCategoria: " + palabra.categoria
 
-    def intentarAdivinar(self, palabra: PalabraSecreta, intento: str) -> bool:
+    def intentarAdivinar(self, palabra, intento):
         return palabra.coincideCon(intento)
 
+
+# 6. JUGADOR
+
 class Jugador:
-    def __init__(self, id_jugador: str, nombre: str):
-        self.id = id_jugador
+
+    def __init__(self, id, nombre):
+        self.id = id
         self.nombre = nombre
-        self.rol: Rol = None
-        self.eliminado: bool = False
+        self.rol = None
+        self.eliminado = False
 
-    def darPista(self, texto: str, numero_turno: int) -> 'Pista':
-        return Pista(autor=self, texto=texto, numeroTurno=numero_turno)
+    def darPista(self, texto, turno):
+        return Pista(self, texto, turno)
 
-    def votar(self, jugador: 'Jugador') -> 'Voto':
-        if self == jugador:
-            raise ValueError("Un jugador no puede votarse a sí mismo.")
-        if jugador.eliminado:
-            raise ValueError("No se puede votar a un jugador eliminado.")
-        return Voto(votante=self, acusado=jugador)
+    def votar(self, jugador):
+        if jugador == self or jugador.eliminado:
+            raise ValueError("Voto no valido")
+        return Voto(self, jugador)
 
-    def getRol(self) -> Rol:
+    def getRol(self):
         return self.rol
 
+
+# 7. PISTA
+
 class Pista:
-    def __init__(self, autor: Jugador, texto: str, numeroTurno: int):
+
+    def __init__(self, autor, texto, turno):
         self.autor = autor
         self.texto = texto
-        self.numeroTurno = numeroTurno
+        self.turno = turno
 
-    def getTexto(self) -> str:
-        return self.texto
 
-    def getAutor(self) -> Jugador:
-        return self.autor
+# 8. VOTO
 
 class Voto:
-    def __init__(self, votante: Jugador, acusado: Jugador):
+
+    def __init__(self, votante, acusado):
         self.votante = votante
         self.acusado = acusado
 
-    def getAcusado(self) -> Jugador:
-        return self.acusado
+
+# 9. RONDA
 
 class Ronda:
-    def __init__(self, numero: int):
-        self.numero = numero
-        self.pistas: list[Pista] = []
-        self.votos: list[Voto] = []
-        self.fase: FaseJuego = FaseJuego.PISTAS
 
-    def registrarPista(self, pista: Pista):
+    def __init__(self, numero):
+        self.numero = numero
+        self.pistas = []
+        self.votos = []
+        self.fase = FaseJuego.PISTAS
+
+    def registrarPista(self, pista):
         self.pistas.append(pista)
 
-    def registrarVoto(self, voto: Voto):
+    def registrarVoto(self, voto):
+        if any(v.votante == voto.votante for v in self.votos):
+            raise ValueError("Ya has votado")
         self.votos.append(voto)
 
-    def avanzarFase(self, nueva_fase: FaseJuego):
-        self.fase = nueva_fase
+    def avanzarFase(self, fase):
+        self.fase = fase
+
+
+# 10. PARTIDA
 
 class Partida:
-    def __init__(self, jugadores: list[Jugador], configuracion: dict):
+
+    def __init__(self, jugadores):
         self.jugadores = jugadores
-        self.rondas: list[Ronda] = []
-        self.palabraSecreta: PalabraSecreta = None
-        self.configuracion = configuracion
+        self.rondas = []
+        self.palabra = None
+        self.ganador = None
 
-    def iniciar(self, palabra: PalabraSecreta):
-        self.palabraSecreta = palabra
+    def iniciar(self, palabra):
+        self.palabra = palabra
+        impostor = random.choice(self.jugadores)
 
-        indice_impostor = random.randint(0, len(self.jugadores) - 1)
-        for i, jugador in enumerate(self.jugadores):
-            if i == indice_impostor:
+        for jugador in self.jugadores:
+            if jugador == impostor:
                 jugador.rol = Impostor()
             else:
                 jugador.rol = Civil(palabra)
-                
-        self.rondas.append(Ronda(numero=1))
 
-    def nuevaRonda(self):
-        siguiente_num = len(self.rondas) + 1
-        self.rondas.append(Ronda(numero=siguiente_num))
+        self.rondas.append(Ronda(1))
 
-    def determinarGanador(self) -> str:
-        return "Partida en curso"
+    def determinarGanador(self):
+        return self.ganador
+
+
+# 11. FUNCION PRINCIPAL
 
 def iniciar_juego_interactivo():
-    print("BIENVENIDOS A EL IMPOSTOR")
-    
-    try:
-        num_jugadores = int(input("Ingrese el número de jugadores (de 3 a 10 jugadores): "))
-        if num_jugadores < 3 or num_jugadores > 10:
-            print("Se necesitan de 3 a 10 jugadores para poder iniciar")
-            return
-    except ValueError:
-        print("Por favor, ingrese un número válido.")
-        return
 
-    lista_jugadores = []
-    for i in range(num_jugadores):
-        nombre = input(f"Ingrese el nombre del Jugador {i + 1}: ").strip()
-        if not nombre:
-            nombre = f"Jugador_{i + 1}"
-        lista_jugadores.append(Jugador(str(i + 1), nombre))
+    print("\n===== EL IMPOSTOR =====")
 
-    banco_palabras = {
-        "1": {"categoria": "Animales", "palabra": "ELEFANTE"},
-        "2": {"categoria": "Lugares", "palabra": "PLAYA"}
+    # REGISTRO DE JUGADORES
+
+    while True:
+        try:
+            cantidad = int(input("\nNumero de jugadores (3-10): "))
+            if 3 <= cantidad <= 10:
+                break
+            print("Debe ingresar entre 3 y 10 jugadores.")
+        except ValueError:
+            print("Ingrese un numero valido.")
+
+    jugadores = []
+
+    for i in range(cantidad):
+        while True:
+            nombre = input(f"Nombre del jugador {i+1}: ").strip()
+
+            if not nombre:
+                print("El nombre no puede estar vacio.")
+            elif any(j.nombre.lower() == nombre.lower() for j in jugadores):
+                print("Ese nombre ya existe.")
+            else:
+                jugadores.append(Jugador(str(i+1), nombre))
+                break
+
+    # SELECCION DE CATEGORIA
+
+    categorias = {
+        "1": ("Animales", "ELEFANTE"),
+        "2": ("Lugares", "PLAYA")
     }
 
-    print("\nSeleccione una categoría:")
-    for key, item in banco_palabras.items():
-        print(f"[{key}] {item['categoria']}")
+    print("\n===== CATEGORIAS =====")
+    print("[1] Animales")
+    print("[2] Lugares")
 
-    opcion_cat = input("Ingrese el número de la categoría deseada: ").strip()
-    
-    if opcion_cat in banco_palabras:
-        categoria_seleccionada = banco_palabras[opcion_cat]["categoria"]
-        texto_palabra = banco_palabras[opcion_cat]["palabra"]
-    else:
-        print("Opción no válida. Se asignará por defecto la primera categoría.")
-        categoria_seleccionada = banco_palabras["1"]["categoria"]
-        texto_palabra = banco_palabras["1"]["palabra"]
+    while True:
+        opcion = input("Seleccione una categoria: ").strip()
+        if opcion in categorias:
+            break
+        print("Seleccione 1 o 2.")
 
-    palabra = PalabraSecreta(texto_palabra, categoria_seleccionada)
+    categoria, texto = categorias[opcion]
+    palabra = PalabraSecreta(texto, categoria)
 
-    config = {"rondas": 1}
-    partida = Partida(lista_jugadores, config)
+    # INICIO DE PARTIDA
+
+    partida = Partida(jugadores)
     partida.iniciar(palabra)
+    ronda = partida.rondas[0]
 
-    print("\n¡Roles asignados de forma aleatoria!")
-    print("¡Atención! Cada jugador debe mirar su pantalla de forma privada en su turno.")
-    
-    for j in lista_jugadores:
-        input(f"\nTurno de **{j.nombre}**. Presione ENTER para ver su rol...")
-        print(f"\nINFORMACIÓN PRIVADA PARA: {j.nombre}")
-        print(f"Tu rol es: {j.getRol().nombre}")
-        print(f"Palabra secreta / Pista visual: {j.getRol().obtenerPalabraVisible(palabra)}")
-        input("\nPresione ENTER para ocultar y pasar al siguiente jugador...")
-        print("\n" * 40)
+    # ASIGNACION PRIVADA DE ROLES
 
-    print("¡TODOS TIENEN SU ROL! COMIENZA LA RONDA")
-    
-    ronda_actual = partida.rondas[0]
+    print("\n===== ASIGNACION DE ROLES =====")
 
-    for j in lista_jugadores:
-        texto_pista = input(f"{j.nombre}, escribe tu pista breve sobre la palabra: ")
-        pista = j.darPista(texto_pista, ronda_actual.numero)
-        ronda_actual.registrarPista(pista)
+    for jugador in jugadores:
+        input(f"\nTurno de {jugador.nombre}. ENTER para ver su rol.")
 
-    print("\nRESUMEN DE PISTAS DE LA RONDA")
-    for p in ronda_actual.pistas:
-        print(f" - {p.getAutor().nombre} dijo: '{p.getTexto()}'")
+        print("\nJugador:", jugador.nombre)
+        print("Rol:", jugador.rol.nombre)
+        print(jugador.rol.obtenerPalabraVisible(palabra))
 
-    print("\n¡Es hora del debate y la votación grupal!")
-    
-    print("\nLista de jugadores:")
-    for j in lista_jugadores:
-        print(f" - {j.nombre} (ID: {j.id})")
-        
-    acusador_nombre = input("\n¿Quién emite el voto? (Escribe el nombre): ")
-    acusado_nombre = input("¿A qué jugador sospechoso acusan?: ")
-    
-    votante_obj = next((j for j in lista_jugadores if j.nombre.lower() == acusador_nombre.lower()), None)
-    acusado_obj = next((j for j in lista_jugadores if j.nombre.lower() == acusado_nombre.lower()), None)
+        input("\nENTER para ocultar la informacion.")
+        print("\n" * 30)
 
-    if votante_obj and acusado_obj:
-        try:
-            voto = votante_obj.votar(acusado_obj)
-            ronda_actual.registrarVoto(voto)
-            print(f"\n[Voto registrado] {voto.votante.nombre} votó contra {voto.getAcusado().nombre}")
-        except ValueError as e:
-            print(f"Error en el voto: {e}")
+    # FASE DE PISTAS
+
+    ronda.avanzarFase(FaseJuego.PISTAS)
+    print("\n===== RONDA DE PISTAS =====")
+
+    for jugador in jugadores:
+        while True:
+            pista = input(f"{jugador.nombre}, escribe tu pista: ").strip()
+            if pista:
+                ronda.registrarPista(jugador.darPista(pista, 1))
+                break
+            print("La pista no puede estar vacia.")
+
+    print("\n===== PISTAS REGISTRADAS =====")
+
+    for pista in ronda.pistas:
+        print(pista.autor.nombre + ": " + pista.texto)
+
+    # FASE DE DEBATE
+
+    ronda.avanzarFase(FaseJuego.DEBATE)
+    input("\nDebatan entre ustedes. ENTER para continuar a la votacion.")
+
+    # FASE DE VOTACION
+
+    ronda.avanzarFase(FaseJuego.VOTACION)
+    print("\n===== VOTACION =====")
+
+    for votante in jugadores:
+        disponibles = [j for j in jugadores if j != votante and not j.eliminado]
+
+        print(f"\nTurno de {votante.nombre}:")
+
+        for jugador in disponibles:
+            print(f"[{jugador.id}] {jugador.nombre}")
+
+        while True:
+            id_voto = input("ID del jugador que desea votar: ").strip()
+            acusado = next((j for j in disponibles if j.id == id_voto), None)
+
+            if acusado:
+                ronda.registrarVoto(votante.votar(acusado))
+                break
+            print("ID no valido. Intente nuevamente.")
+
+    # CONTEO DE VOTOS
+
+    print("\n===== RESULTADO DE VOTACION =====")
+
+    conteo = {}
+
+    for voto in ronda.votos:
+        nombre = voto.acusado.nombre
+        conteo[nombre] = conteo.get(nombre, 0) + 1
+
+    for nombre, votos in conteo.items():
+        print(nombre, ":", votos, "voto(s)")
+
+    max_votos = max(conteo.values())
+
+    mas_votados = [
+        j for j in jugadores
+        if conteo.get(j.nombre, 0) == max_votos
+    ]
+
+    # DETERMINAR GANADOR
+
+    if len(mas_votados) > 1:
+        print("\nEmpate. El impostor gana.")
+        partida.ganador = "Impostor"
+
     else:
-        print("Nombres ingresados no válidos para la votación.")
+        eliminado = mas_votados[0]
+        eliminado.eliminado = True
 
-    print("\nREVELACIÓN FINAL DE ROLES")
-    for j in lista_jugadores:
-        rol_real = j.getRol().nombre
-        print(f" - {j.nombre} era: {rol_real}")
+        print("\nJugador eliminado:", eliminado.nombre)
 
-    print("\n¡Gracias por jugar a El Impostor!")
+        if isinstance(eliminado.rol, Impostor):
 
+            ronda.avanzarFase(FaseJuego.ULTIMA_OPORTUNIDAD)
+            print("\n¡Descubrieron al impostor!")
+            intento = input("Impostor, adivina la palabra secreta: ")
+
+            if eliminado.rol.intentarAdivinar(palabra, intento):
+                print("\n¡El impostor adivino la palabra y gano!")
+                partida.ganador = "Impostor"
+            else:
+                print("\n¡El impostor fallo!")
+                partida.ganador = "Civiles"
+
+        else:
+            print("\nEliminaron a un civil. ¡Gana el impostor!")
+            partida.ganador = "Impostor"
+
+    # RESULTADO FINAL
+
+    ronda.avanzarFase(FaseJuego.RESULTADO)
+
+    print("\n===== RESULTADO FINAL =====")
+    print("Palabra secreta:", palabra.texto)
+    print("Categoria:", palabra.categoria)
+
+    print("\n===== ROLES =====")
+
+    for jugador in jugadores:
+        estado = "Eliminado" if jugador.eliminado else "Activo"
+        print(jugador.nombre, "-", jugador.rol.nombre, "-", estado)
+
+    print("\n===== GANADOR =====")
+    print(partida.determinarGanador().upper())
+    print("\n¡GRACIAS POR JUGAR!")
+
+
+# 12. EJECUCION
 
 if __name__ == "__main__":
     iniciar_juego_interactivo()
