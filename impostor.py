@@ -4,8 +4,7 @@ from enum import Enum
 import random
 
 
-# 1. FASES DEL JUEGO
-
+# FASES 
 class FaseJuego(Enum):
     REGISTRO = 1
     ASIGNACION = 2
@@ -16,7 +15,7 @@ class FaseJuego(Enum):
     RESULTADO = 7
 
 
-# 2. PALABRA SECRETA
+# PALABRA SECRETA
 
 class PalabraSecreta:
 
@@ -28,7 +27,7 @@ class PalabraSecreta:
         return self.texto == intento.upper().strip()
 
 
-# 3. CLASE ABSTRACTA ROL
+#  ROL
 
 class Rol(ABC):
 
@@ -44,7 +43,7 @@ class Rol(ABC):
         pass
 
 
-# 4. ROL CIVIL
+# ROL CIVIL
 
 class Civil(Rol):
 
@@ -59,7 +58,7 @@ class Civil(Rol):
         return self.palabra.texto
 
 
-# 5. ROL IMPOSTOR
+# ROL IMPOSTOR
 
 class Impostor(Rol):
 
@@ -76,7 +75,7 @@ class Impostor(Rol):
         return palabra.coincideCon(intento)
 
 
-# 6. JUGADOR
+# JUGADOR
 
 class Jugador:
 
@@ -98,7 +97,7 @@ class Jugador:
         return self.rol
 
 
-# 7. PISTA
+#  PISTA
 
 class Pista:
 
@@ -108,7 +107,7 @@ class Pista:
         self.turno = turno
 
 
-# 8. VOTO
+#  VOTO
 
 class Voto:
 
@@ -117,7 +116,7 @@ class Voto:
         self.acusado = acusado
 
 
-# 9. RONDA
+#  RONDA
 
 class Ronda:
 
@@ -139,7 +138,7 @@ class Ronda:
         self.fase = fase
 
 
-# 10. PARTIDA
+#  PARTIDA
 
 class Partida:
 
@@ -165,13 +164,13 @@ class Partida:
         return self.ganador
 
 
-# 11. FUNCION PRINCIPAL
+#  FUNCION PRINCIPAL
 
 def iniciar_juego_interactivo():
 
     print("\n===== EL IMPOSTOR =====")
 
-    # REGISTRO DE JUGADORES
+    # REGISTRO JUGADORES
 
     while True:
         try:
@@ -349,7 +348,7 @@ def iniciar_juego_interactivo():
     print("\n¡GRACIAS POR JUGAR!")
 
 
-# 12. EJECUCION
+# EJECUCION
 
 if __name__ == "__main__":
     iniciar_juego_interactivo()
